@@ -17,18 +17,10 @@
 package eu.janmuller.android.simplecropimage;
 
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.concurrent.CountDownLatch;
-
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Path;
@@ -50,14 +42,13 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Toast;
 
+import java.util.concurrent.CountDownLatch;
+
 
 /**
  * The activity can crop specific region of interest from an image.
  */
 public class CropImage extends MonitoredActivity {
-
-    final int IMAGE_MAX_SIZE = 1024;
-
     private static final String TAG                    = "CropImage";
     public static final  String IMAGE_PATH             = "image-path";
     public static final  String SCALE                  = "scale";
@@ -130,8 +121,8 @@ public class CropImage extends MonitoredActivity {
 
             mImagePath = extras.getString(IMAGE_PATH);
 
-            mSaveUri = getImageUri(mImagePath);
-            mBitmap = getBitmap(mImagePath);
+            mSaveUri = Util.getImageUri(mImagePath);
+            mBitmap = Util.getBitmap(mImagePath, mContentResolver);
 
             if (extras.containsKey(ASPECT_X) && extras.get(ASPECT_X) instanceof Integer) {
 
@@ -207,46 +198,6 @@ public class CropImage extends MonitoredActivity {
                 });
         startFaceDetection();
     }
-
-    private Uri getImageUri(String path) {
-
-        return Uri.fromFile(new File(path));
-    }
-
-    private Bitmap getBitmap(String path) {
-
-        Uri uri = getImageUri(path);
-        InputStream in = null;
-        try {
-            in = mContentResolver.openInputStream(uri);
-
-            //Decode image size
-            BitmapFactory.Options o = new BitmapFactory.Options();
-            o.inJustDecodeBounds = true;
-
-            BitmapFactory.decodeStream(in, null, o);
-            in.close();
-
-            int scale = 1;
-            if (o.outHeight > IMAGE_MAX_SIZE || o.outWidth > IMAGE_MAX_SIZE) {
-                scale = (int) Math.pow(2, (int) Math.round(Math.log(IMAGE_MAX_SIZE / (double) Math.max(o.outHeight, o.outWidth)) / Math.log(0.5)));
-            }
-
-            BitmapFactory.Options o2 = new BitmapFactory.Options();
-            o2.inSampleSize = scale;
-            in = mContentResolver.openInputStream(uri);
-            Bitmap b = BitmapFactory.decodeStream(in, null, o2);
-            in.close();
-
-            return b;
-        } catch (FileNotFoundException e) {
-            Log.e(TAG, "file " + path + " not found");
-        } catch (IOException e) {
-            Log.e(TAG, "file " + path + " not found");
-        }
-        return null;
-    }
-
 
     private void startFaceDetection() {
 
@@ -405,44 +356,21 @@ public class CropImage extends MonitoredActivity {
                     new Runnable() {
                         public void run() {
 
-                            saveOutput(b);
+                            boolean saved = Util.saveOutput(b, mSaveUri, mOutputFormat, 100, mContentResolver);
+                            if(saved) {
+                                Bundle extras = new Bundle();
+                                Intent intent = new Intent(mSaveUri.toString());
+                                intent.putExtras(extras);
+                                intent.putExtra(IMAGE_PATH, mImagePath);
+                                intent.putExtra(ORIENTATION_IN_DEGREES, Util.getOrientationInDegree(CropImage.this));
+                                setResult(RESULT_OK, intent);
+                            } else {
+                                setResult(RESULT_CANCELED);
+                            }
+                            finish();
                         }
                     }, mHandler);
         }
-    }
-
-    private void saveOutput(Bitmap croppedImage) {
-
-        if (mSaveUri != null) {
-            OutputStream outputStream = null;
-            try {
-                outputStream = mContentResolver.openOutputStream(mSaveUri);
-                if (outputStream != null) {
-                    croppedImage.compress(mOutputFormat, 90, outputStream);
-                }
-            } catch (IOException ex) {
-
-                Log.e(TAG, "Cannot open file: " + mSaveUri, ex);
-                setResult(RESULT_CANCELED);
-                finish();
-                return;
-            } finally {
-
-                Util.closeSilently(outputStream);
-            }
-
-            Bundle extras = new Bundle();
-            Intent intent = new Intent(mSaveUri.toString());
-            intent.putExtras(extras);
-            intent.putExtra(IMAGE_PATH, mImagePath);
-            intent.putExtra(ORIENTATION_IN_DEGREES, Util.getOrientationInDegree(this));
-            setResult(RESULT_OK, intent);
-        } else {
-
-            Log.e(TAG, "not defined image url");
-        }
-        croppedImage.recycle();
-        finish();
     }
 
     @Override

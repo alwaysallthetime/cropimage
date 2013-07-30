@@ -1,11 +1,29 @@
+.DS_Store
+
+# built application files
+*.apk
+*.ap_
+
+# files for the dex VM
+*.dex
+
+# Java class files
+*.class
+
+# generated files
 bin/
 gen/
-png/
-target/
-.settings/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Eclipse project files
 .classpath
-*.class
-*.log
-*.iml
-.DS_Store
+.project
+
+# Android Studio
+build/
+.idea/workspace.xml
+.idea/tasks.xml
+.gradle/
 

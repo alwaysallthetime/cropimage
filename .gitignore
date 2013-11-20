@@ -27,3 +27,5 @@ build/
 .idea/tasks.xml
 .gradle/
 
+*.iml
+.idea/

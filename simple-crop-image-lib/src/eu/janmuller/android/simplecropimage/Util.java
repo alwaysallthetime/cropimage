@@ -288,7 +288,7 @@ public class Util {
 
     public static Uri getImageUri(String path) {
         // Apparently the G+ Photos app returns URLs, not paths. thanks dudes
-        if (path != null && path.contains("://") {
+        if (path != null && path.contains("://")) {
             return Uri.parse(path);
         }
 
